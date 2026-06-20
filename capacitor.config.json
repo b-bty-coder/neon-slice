@@ -1,0 +1,9 @@
+{
+  "appId": "com.yourstudio.neonslice",
+  "appName": "Neon Slice",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": false
+  }
+}
