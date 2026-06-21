@@ -1,9 +1,11 @@
 name: Build Signed Android App Bundle
 
+# Runs entirely on GitHub's cloud servers — trigger it by pushing changes
+# from your phone (editing files on github.com or the GitHub mobile app).
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: {}
+  workflow_dispatch: {}   # lets you trigger it manually from the Actions tab too
 
 jobs:
   build:
@@ -58,11 +60,30 @@ jobs:
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
 
+      - name: Build signed release APK (for itch.io / direct install)
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          cd android
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/android/app/release.keystore \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
       - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
           name: neon-slice-release-aab
           path: android/app/build/outputs/bundle/release/*.aab
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: neon-slice-release-apk
+          path: android/app/build/outputs/apk/release/*.apk
 
       - name: Commit generated android/ folder back (first run only)
         if: always()
