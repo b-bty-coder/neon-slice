@@ -40,6 +40,13 @@ jobs:
       - name: Sync web assets into the native project
         run: npx cap sync android
 
+        - name: Add AdMob Application ID to AndroidManifest
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          if ! grep -q "APPLICATION_ID" "$MANIFEST"; then
+            sed -i 's#</application>#    <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713"/>\n    </application>#' "$MANIFEST"
+          fi
+
       - name: Decode signing keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
