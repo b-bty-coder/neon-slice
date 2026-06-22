@@ -1,58 +1,43 @@
 name: Build Signed Android App Bundle
-
-# Runs entirely on GitHub's cloud servers — trigger it by pushing changes
-# from your phone (editing files on github.com or the GitHub mobile app).
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: {}   # lets you trigger it manually from the Actions tab too
-
+  workflow_dispatch: {}
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
-
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-
       - name: Install dependencies
         run: npm install
-
-      - name: Add Android platform (first run only)
+      - name: Add Android platform
         run: |
           if [ ! -d "android" ]; then
             npx cap add android
           fi
-
-      - name: Sync web assets into the native project
+      - name: Sync web assets
         run: npx cap sync android
-
-        - name: Add AdMob Application ID to AndroidManifest
+      - name: Add AdMob ID to Manifest
         run: |
           MANIFEST=android/app/src/main/AndroidManifest.xml
-          if ! grep -q "APPLICATION_ID" "$MANIFEST"; then
-            sed -i 's#</application>#    <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713"/>\n    </application>#' "$MANIFEST"
-          fi
-
+          grep -q "APPLICATION_ID" "$MANIFEST" || sed -i 's|</application>|<meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713"/></application>|' "$MANIFEST"
       - name: Decode signing keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
-
       - name: Build signed release AAB
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -66,8 +51,7 @@ jobs:
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
-
-      - name: Build signed release APK (for itch.io / direct install)
+      - name: Build signed release APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -79,24 +63,21 @@ jobs:
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
-
       - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
           name: neon-slice-release-aab
           path: android/app/build/outputs/bundle/release/*.aab
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: neon-slice-release-apk
           path: android/app/build/outputs/apk/release/*.apk
-
-      - name: Commit generated android/ folder back (first run only)
+      - name: Commit android folder
         if: always()
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add android || true
-          git diff --cached --quiet || git commit -m "chore: commit generated android project [skip ci]"
+          git diff --cached --quiet || git commit -m "chore: commit android project [skip ci]"
           git push || true
